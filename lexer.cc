@@ -34,6 +34,7 @@ void Token::Print()
     cout << "{" << this->lexeme << " , "
          << reserved[(int) this->token_type] << " , "
          << this->line_no << "}\n";
+    
 }
 
 LexicalAnalyzer::LexicalAnalyzer()
@@ -53,13 +54,16 @@ bool LexicalAnalyzer::SkipSpace()
     char c;
     bool space_encountered = false;
 
+    if (input.EndOfInput())
+	return false;
+
     input.GetChar(c);
     line_no += (c == '\n');
 
     while (!input.EndOfInput() && isspace(c)) {
         space_encountered = true;
-        input.GetChar(c);
-        line_no += (c == '\n');
+        if (input.GetChar(c))
+        	line_no += (c == '\n');
     }
 
     if (!input.EndOfInput()) {
@@ -88,12 +92,20 @@ TokenType LexicalAnalyzer::FindKeywordIndex(string s)
     return ERROR;
 }
 
+
 Token LexicalAnalyzer::ScanNumber()
 {
     char c;
+    tmp.lexeme = "";
+    tmp.token_type = ERROR;
+    tmp.line_no = line_no;
+
+    if (input.EndOfInput())
+	return tmp;
 
     input.GetChar(c);
     if (isdigit(c)) {
+	tmp.token_type = NUM;
         if (c == '0') {
             tmp.lexeme = "0";
         } else {
@@ -106,7 +118,10 @@ Token LexicalAnalyzer::ScanNumber()
                 input.UngetChar(c);
             }
         }
+    	if (input.EndOfInput())
+		return tmp;
         input.GetChar(c);
+
         if (c == '.') {           // possibly REALNUM
             input.GetChar(c);
             if (isdigit(c)) {     // definitely REALNUM
@@ -144,33 +159,31 @@ Token LexicalAnalyzer::ScanNumber()
 Token LexicalAnalyzer::ScanIdOrKeyword()
 {
     char c;
+    tmp.lexeme = "";
+    tmp.token_type = ERROR;
+    tmp.line_no = line_no;
+
+    if (input.EndOfInput())
+	return tmp;
+
 
     input.GetChar(c);
     if (isalpha(c)) {
         tmp.lexeme = "";
-      //  cout<<"hello1";
         while (!input.EndOfInput() && isalnum(c)) {
-            //cout<<" . "<<c<< " ";
             tmp.lexeme += c;
-      //      cout<<" .1 "<<c<< " ";
             input.GetChar(c);
-          //  cout<<" .2 "<<c<< " ";
-          //  cout<<c<< " ";
         }
-    //    cout<<"hello2";
         if (!input.EndOfInput()) {
             input.UngetChar(c);
         }
-      //  cout<<"hello";
         tmp.token_type = ID;
         tmp.line_no = line_no;
         if (IsKeyword(tmp.lexeme))
             tmp.token_type = FindKeywordIndex(tmp.lexeme);
 
     } else {
-        if (!input.EndOfInput()) {
-            input.UngetChar(c);
-        }
+        input.UngetChar(c);
         tmp.lexeme = "";
         tmp.token_type = ERROR;
     }
@@ -180,21 +193,25 @@ Token LexicalAnalyzer::ScanIdOrKeyword()
 Token LexicalAnalyzer::ScanStringCons()
 {
     char c;
+    tmp.lexeme = "";
+    tmp.token_type = ERROR;
+    tmp.line_no = line_no;
+
+    if (input.EndOfInput())
+	return tmp;
+
     input.GetChar(c);
     string lexeme = "";
 
     if (c == '"') {
         tmp.lexeme = "";
-        //tmp.lexeme += '"';
         input.GetChar(c);
         while (!input.EndOfInput() && isalnum(c)) {
             lexeme += c;
             input.GetChar(c);
         }
         if (!input.EndOfInput()) {
-            //input.GetChar(c);
             if (c == '"') {
-                //lexeme += c;
                 tmp.lexeme += lexeme;
                 tmp.token_type = STRING_CONSTANT;
             }
@@ -257,8 +274,14 @@ Token LexicalAnalyzer::GetToken()
 
     SkipSpace();
     tmp.lexeme = "";
+    tmp.token_type = END_OF_FILE;
     tmp.line_no = line_no;
-    input.GetChar(c);
+
+    if (!input.EndOfInput())
+    	input.GetChar(c);
+    else
+        return tmp;
+
     switch (c) {
         case ',': tmp.token_type = COMMA;       return tmp;
         case ':': tmp.token_type = COLON;       return tmp;
@@ -323,16 +346,3 @@ Token LexicalAnalyzer::GetToken()
     }
 }
 
-int main()
-{
-    LexicalAnalyzer lexer;
-    Token token;
-
-    token = lexer.GetToken();
-    token.Print();
-    while (token.token_type != END_OF_FILE)
-    {
-        token = lexer.GetToken();
-        token.Print();
-    }
-}
