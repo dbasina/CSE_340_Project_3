@@ -1,5 +1,15 @@
 #include "parser.h"
 #include <algorithm>
+#define NumberOfBuiltInTypes 34
+
+string builtInTypes[] = { "END_OF_FILE",
+    "REAL", "INT", "BOOLEAN", "STRING",
+    "WHILE", "TRUE", "FALSE", ",", ":", ";",
+    "{", "}", "(", ")",
+    "=", "+", "-", "*", "/","AND", "OR", "XOR", "!",
+    ">", ">=", "<", "=<", "!=",
+    "ID", "NUM", "REALNUM", "STRING_CONSTANT", "ERROR"
+};
 Parser::Parser()
 {
 
@@ -58,6 +68,7 @@ void Parser::referenceVariable(scope *scope, string variableId)
     
   }
 }
+
 void Parser::syntaxError(string location)
 {
   
@@ -66,6 +77,16 @@ void Parser::syntaxError(string location)
   exit(0);
 }
 
+void Parser::checkBuiltInType(string variableId)
+{
+  for (int i = 0; i < NumberOfBuiltInTypes; i++) 
+  {
+    if (variableId == builtInTypes[i]) 
+    {
+      syntaxError("checkBuiltInType");
+    }
+  }
+}
 TokenType Parser::peek()
 {
     Token t = lexer.GetToken();
@@ -327,7 +348,8 @@ void Parser::parseVariableDeclaration()
 vector<string> Parser::parseIdList()
 {
     vector<string> retVector;
-    Token t = expect(ID,"parseIdList");    
+    Token t = expect(ID,"parseIdList");
+    checkBuiltInType(t.lexeme);   
     retVector.push_back(t.lexeme);
     TokenType type = peek();
     if (type == COMMA)
@@ -418,6 +440,7 @@ void Parser::parseStatement()
 void Parser::parseAssignmentStatement()
 {
     Token t = expect(ID,"parseAssignmentStatement");
+    checkBuiltInType(t.lexeme);
     if(!lookup(currentScope,t.lexeme))
     {
       semanticErrors.push_back("ERROR CODE 1.2 "+t.lexeme);
@@ -538,6 +561,7 @@ void Parser::parsePrimary()
   {
     if (t.token_type == ID)
     {
+      checkBuiltInType(t.lexeme);
       if(!lookup(currentScope,t.lexeme))
       {
         semanticErrors.push_back("ERROR CODE 1.2 "+t.lexeme);

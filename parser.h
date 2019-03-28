@@ -29,6 +29,7 @@ class Parser
     LexicalAnalyzer lexer;
     Parser();
     void syntaxError(string location);
+    void checkBuiltInType(string variableId);
     bool lookupInLocalScope(scope *scope,string tokenId);
     bool lookup(scope *scope,string tokenId);
     bool referenceVariableLocalScope(scope *scope, string variableId);
