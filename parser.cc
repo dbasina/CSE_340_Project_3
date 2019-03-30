@@ -1,15 +1,7 @@
 #include "parser.h"
 #include <algorithm>
-#define NumberOfBuiltInTypes 34
-
-string builtInTypes[] = { "END_OF_FILE",
-    "REAL", "INT", "BOOLEAN", "STRING",
-    "WHILE", "TRUE", "FALSE", ",", ":", ";",
-    "{", "}", "(", ")",
-    "=", "+", "-", "*", "/","AND", "OR", "XOR", "!",
-    ">", ">=", "<", "=<", "!=",
-    "ID", "NUM", "REALNUM", "STRING_CONSTANT", "ERROR"
-};
+#include <string>
+string builtInTypes[] = { "REAL", "INT", "BOOLEAN", "STRING"};
 Parser::Parser()
 {
 
@@ -41,6 +33,111 @@ bool Parser::lookup(scope *scope,string tokenId)
   }
 
   return false;
+}
+
+TokenType Parser::variableType(scope *scope,string tokenId)
+{
+  if (scope!=NULL)
+  {
+    if(lookupInLocalScope(scope,tokenId))
+      return scope->localVariables[tokenId];
+    else
+    {
+      return variableType(scope->parent,tokenId);  
+    }
+    
+  }
+}
+
+TokenType Parser::typeCheck(TokenType type, TokenType operandType1, TokenType operandType2, int lineNumber)
+{
+  
+  if (type == PLUS or type == MINUS or type == MULT or type == DIV)
+  {       
+       if(operandType1 == REAL or operandType1 == INT)
+       {
+         if(operandType2 == REAL or operandType2 == INT )
+         {
+           if(operandType1 == REAL or operandType2 == REAL)
+           {
+             return REAL;
+           }
+           else
+           {
+             return INT;
+           }
+         }
+         else
+         {
+           string errorMessage = "TYPE MISMATCH "+std::to_string(lineNumber)+" C3";
+           typeMismatchErrors.push_back(errorMessage);
+           return ERROR;
+         }
+       }
+
+       else
+       {
+         typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+" C3");
+         return ERROR;
+       }
+  }
+
+  /*
+  else if (type == AND or type == OR or type == XOR)
+  {       
+      if (operandType1 == BOOLEAN and operandType2 == BOOLEAN)
+        {}
+      else
+      {
+        typeMismatchErrors.push_back("TYPE MISMATCH "+lineNumber+"C4");
+      }
+  }
+
+  else if (type == GREATER or type == GTEQ or type == LESS or type == NOTEQUAL or type == LTEQ)
+  {       
+       //string
+      if(operandType1 == STRING)
+      {
+        if(operandType2 == STRING)
+        {}
+        else
+        {
+          typeMismatchErrors.push_back("TYPE MISMATCH "+lineNumber+ " C5");
+        }
+      }
+
+       //boolean
+      if(operandType1 == BOOLEAN)
+      {
+        if(operandType2 == BOOLEAN)
+        {}
+        else
+        {
+          typeMismatchErrors.push_back("TYPE MISMATCH "+lineNumber+ " C5");
+        }
+      }
+
+       // int or real
+       if(operandType1 == REAL or operandType1 == INT)
+       {
+         if(operandType2 == REAL or operandType2 == INT)
+         {
+
+         }
+         else
+         {
+           typeMismatchErrors.push_back("TYPE MISMATCH "+lineNumber+ " C6");
+         }
+       }
+
+  }
+
+  
+  else if (type == NOT)
+  {
+       
+  }
+  */
 }
 
 bool Parser::referenceVariableLocalScope(scope *scope, string variableId)
@@ -79,7 +176,7 @@ void Parser::syntaxError(string location)
 
 void Parser::checkBuiltInType(string variableId)
 {
-  for (int i = 0; i < NumberOfBuiltInTypes; i++) 
+  for (int i = 0; i < 4; i++) 
   {
     if (variableId == builtInTypes[i]) 
     {
@@ -121,6 +218,7 @@ Token Parser::expect(TokenType expectedTokenType,string location)
 void Parser::parseProgram()
 {
   parseScope();
+  expect(END_OF_FILE,"parseProgram");
 }
 
 void Parser::parseScope()
@@ -314,6 +412,11 @@ void Parser::parseScopeList()
     }
   }
 
+  else
+  {
+    syntaxError("parseScopeList");
+  }
+
 }
 
 void Parser::parseVariableDeclaration()
@@ -452,7 +555,8 @@ void Parser::parseAssignmentStatement()
     }
 
     expect(EQUAL,"parseAssignmentStatement");
-    parseExpression();
+    TokenType expressionType = parseExpression(t.line_no);
+    cout<<"Expression Type: "<<expressionType<<endl;
     expect(SEMICOLON,"parseAssignmentStatement");
     
 }
@@ -475,39 +579,45 @@ void Parser::parseWhileStatement()
     } 
 }
 
-void Parser::parseExpression()
+TokenType Parser::parseExpression(int lineNumber)
 {
     TokenType type = peek();
     if (type == PLUS or type == MINUS or type == MULT or type == DIV)
     {       
-        parseArithmeticOperator();
-        parseExpression();
-        parseExpression();
+       parseArithmeticOperator();
+       TokenType operandType1 = parseExpression(lineNumber);
+       TokenType operandType2 = parseExpression(lineNumber);
+       return typeCheck(type,operandType1,operandType2,lineNumber);
     }
 
     else if (type == AND or type == OR or type == XOR)
     {       
         parseBinaryBooleanOperator();
-        parseExpression();
-        parseExpression();
+        TokenType operandType1 = parseExpression(lineNumber);
+        TokenType operandType2 = parseExpression(lineNumber);
+        return typeCheck(type,operandType1,operandType2,lineNumber);
     }
 
     else if (type == GREATER or type == GTEQ or type == LESS or type == NOTEQUAL or type == LTEQ)
     {       
         parseRelationalOperator();
-        parseExpression();
-        parseExpression();
+        TokenType operandType1 = parseExpression(lineNumber);
+        TokenType operandType2 = parseExpression(lineNumber);
+        return typeCheck(type,operandType1,operandType2,lineNumber);
     }
 
+    /*
     else if (type == NOT)
     {
         expect(NOT,"parseExpression");
-        parseExpression();
+        TokenType operandType1 = parseExpression(lineNumber);
+        return typeCheck(type,operandType1,NONE,lineNumber)
     }
+    */
 
     else
     {
-        parsePrimary();
+        return parsePrimary();
     }
 }
 
@@ -553,7 +663,7 @@ void Parser::parseRelationalOperator()
   }
 }
 
-void Parser::parsePrimary()
+TokenType Parser::parsePrimary()
 {
   Token t = lexer.GetToken();
 
@@ -570,28 +680,45 @@ void Parser::parsePrimary()
       else
       {
         referenceVariable(currentScope, t.lexeme);
+        return variableType(currentScope,t.lexeme);
       }
+    }
+    
+    else if(t.token_type == NUM)
+    {
+      return INT;
+    }
+
+    else if(t.token_type == REALNUM)
+    {
+      return REAL;
+    }
+    
+    else if(t.token_type == STRING_CONSTANT)
+    {
+      return STRING;
     }
   }
 
   else
   {
     TokenType type = lexer.UngetToken(t);
-    parseBoolConstant();
+    return parseBoolConstant();
   }
 }
 
-void Parser::parseBoolConstant()
+TokenType Parser::parseBoolConstant()
 {
   Token t = lexer.GetToken();
   if (t.token_type == TRUE)
   {
-    // do something
+    return BOOLEAN;
   }
 
   else if (t.token_type == FALSE)
   {
-    // do something
+    
+    return BOOLEAN;
   }
 
   else
@@ -603,9 +730,10 @@ void Parser::parseBoolConstant()
 
 void Parser::parseCondition()
 {
-  expect(LPAREN,"parseCondition");
-  parseExpression();
+  Token t = expect(LPAREN,"parseCondition");
+  parseExpression(t.line_no);
   expect(RPAREN,"parseCondition");
+  
 }
 
 int main()
@@ -616,5 +744,10 @@ int main()
   for( vector<string>::iterator semanticError = newParser.semanticErrors.begin(); semanticError!=newParser.semanticErrors.end(); ++semanticError)
   {
     cout<<*semanticError<<endl;
-  } 
+  }
+
+  for (vector<string>::iterator typeMismatchError = newParser.typeMismatchErrors.begin(); typeMismatchError !=newParser.typeMismatchErrors.end(); ++typeMismatchError)
+  {
+    cout<<*typeMismatchError<<endl;
+  }
 }

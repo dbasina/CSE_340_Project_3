@@ -26,12 +26,15 @@ class Parser
     scope *currentScope = NULL;
     std::vector<scope> scopeVector;
     std::vector<string> semanticErrors;
+    std::vector<string> typeMismatchErrors;
     LexicalAnalyzer lexer;
     Parser();
     void syntaxError(string location);
     void checkBuiltInType(string variableId);
     bool lookupInLocalScope(scope *scope,string tokenId);
     bool lookup(scope *scope,string tokenId);
+    TokenType variableType(scope *scope,string tokenId);
+    TokenType typeCheck(TokenType operatorType, TokenType operandType1, TokenType operandType2,int lineNumber);
     bool referenceVariableLocalScope(scope *scope, string variableId);
     void referenceVariable(scope *scope, string variableId);
     TokenType peek();
@@ -47,12 +50,12 @@ class Parser
     void parseStatement();
     void parseAssignmentStatement();
     void parseWhileStatement();
-    void parseExpression();
+    TokenType parseExpression(int lineNumber);
     void parseArithmeticOperator();
     void parseBinaryBooleanOperator();
     void parseRelationalOperator();
-    void parsePrimary();
-    void parseBoolConstant();
+    TokenType parsePrimary();
+    TokenType parseBoolConstant();
     void parseCondition();
 
 };

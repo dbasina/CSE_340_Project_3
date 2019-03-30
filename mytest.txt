@@ -1,11 +1,11 @@
 {
-	a : INT;
-	b : INT;
-	a = 1;
-	b = 1;
-		{ c : INT;
-		  d : INT;
-		  a = 1;
-		  c = 1;
-	}
+	u, v, a : INT;
+	x, y, b, z : REAL;
+	u = 1;
+	v = 2;
+	x = 3.5;
+	y = 4.5;
+	a = + u v;
+	b = + x y;	
+	z = + a b;
 }
