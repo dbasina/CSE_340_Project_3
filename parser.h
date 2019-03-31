@@ -25,7 +25,7 @@ class Parser
   public:
     scope *currentScope = NULL;
     std::vector<scope> scopeVector;
-    std::vector<string> semanticErrors;
+    std::vector<string> declarationErrors;
     std::vector<string> typeMismatchErrors;
     LexicalAnalyzer lexer;
     Parser();
@@ -56,6 +56,6 @@ class Parser
     void parseRelationalOperator();
     TokenType parsePrimary();
     TokenType parseBoolConstant();
-    void parseCondition();
+    TokenType parseCondition();
 
 };

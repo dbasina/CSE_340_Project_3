@@ -64,7 +64,15 @@ TokenType Parser::typeCheck(TokenType type, TokenType operandType1, TokenType op
            }
            else
            {
-             return INT;
+             if (type == DIV)
+             {
+               return REAL;
+             }
+             else
+             {
+               return INT;
+             }
+             
            }
          }
          else
@@ -82,62 +90,76 @@ TokenType Parser::typeCheck(TokenType type, TokenType operandType1, TokenType op
        }
   }
 
-  /*
+
   else if (type == AND or type == OR or type == XOR)
   {       
       if (operandType1 == BOOLEAN and operandType2 == BOOLEAN)
-        {}
+      {
+        return BOOLEAN;
+      }
       else
       {
-        typeMismatchErrors.push_back("TYPE MISMATCH "+lineNumber+"C4");
+        typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+" C4");
+        return ERROR;
       }
   }
-
+  
   else if (type == GREATER or type == GTEQ or type == LESS or type == NOTEQUAL or type == LTEQ)
   {       
        //string
       if(operandType1 == STRING)
       {
         if(operandType2 == STRING)
-        {}
+        {
+          return BOOLEAN;
+        }
         else
         {
-          typeMismatchErrors.push_back("TYPE MISMATCH "+lineNumber+ " C5");
+          typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+ " C5");
+          return ERROR;
         }
       }
 
        //boolean
-      if(operandType1 == BOOLEAN)
+      else if(operandType1 == BOOLEAN)
       {
         if(operandType2 == BOOLEAN)
-        {}
+        {
+          return BOOLEAN;
+        }
         else
         {
-          typeMismatchErrors.push_back("TYPE MISMATCH "+lineNumber+ " C5");
+          typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+ " C5");
+          return ERROR;
         }
       }
 
        // int or real
-       if(operandType1 == REAL or operandType1 == INT)
-       {
-         if(operandType2 == REAL or operandType2 == INT)
-         {
-
-         }
-         else
-         {
-           typeMismatchErrors.push_back("TYPE MISMATCH "+lineNumber+ " C6");
-         }
-       }
+      else if(operandType1 == REAL or operandType1 == INT)
+      {
+        if(operandType2 == REAL or operandType2 == INT)
+        {
+          return BOOLEAN;
+        }
+        else
+        {
+          typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+ " C6");
+          return ERROR;
+        }
+      }
 
   }
 
   
   else if (type == NOT)
   {
-       
+    if (operandType1 != operandType2)
+    {
+      typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+ " C8");
+      return ERROR;
+    }
   }
-  */
+  
 }
 
 bool Parser::referenceVariableLocalScope(scope *scope, string variableId)
@@ -169,8 +191,8 @@ void Parser::referenceVariable(scope *scope, string variableId)
 void Parser::syntaxError(string location)
 {
   
-  //cout<<"Syntax Error:"<<location<<endl;
-  cout<<"Syntax Error"<<endl;
+  cout<<"Syntax Error:"<<location<<endl;
+  //cout<<"Syntax Error"<<endl;
   exit(0);
 }
 
@@ -236,7 +258,7 @@ void Parser::parseScope()
   {
     if (referenceIterator->second == false)
     {
-      semanticErrors.push_back("ERROR CODE 1.3 " + referenceIterator->first);
+      declarationErrors.push_back("ERROR CODE 1.3 " + referenceIterator->first);
     }
   }
 
@@ -431,7 +453,7 @@ void Parser::parseVariableDeclaration()
     {
       if(std::find(currentScope->variableIds.begin(),currentScope->variableIds.end(),*declaredId) != currentScope->variableIds.end())
       {
-        semanticErrors.push_back("ERROR CODE 1.1 " + *declaredId);  
+        declarationErrors.push_back("ERROR CODE 1.1 " + *declaredId);  
       }
 
       else
@@ -546,7 +568,7 @@ void Parser::parseAssignmentStatement()
     checkBuiltInType(t.lexeme);
     if(!lookup(currentScope,t.lexeme))
     {
-      semanticErrors.push_back("ERROR CODE 1.2 "+t.lexeme);
+      declarationErrors.push_back("ERROR CODE 1.2 "+t.lexeme);
     }
 
     else
@@ -555,16 +577,71 @@ void Parser::parseAssignmentStatement()
     }
 
     expect(EQUAL,"parseAssignmentStatement");
-    TokenType expressionType = parseExpression(t.line_no);
-    cout<<"Expression Type: "<<expressionType<<endl;
+    TokenType rhsType = parseExpression(t.line_no);
+    
+    if(lookup(currentScope,t.lexeme))
+    {
+      if (rhsType!=ERROR)
+      {
+        TokenType lhsType = variableType(currentScope,t.lexeme);
+
+        if (lhsType == REAL)
+        {
+          if (rhsType==INT or rhsType==REAL)
+          {}
+          else
+          {
+            typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(t.line_no)+ " C2");
+          }
+        }
+        else
+        {
+          if(lhsType == INT)
+          {
+            if (rhsType!=INT)
+            {
+              typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(t.line_no)+ " C1");
+            }
+          }
+
+          else if (lhsType == BOOLEAN)
+          {
+            if (rhsType!=BOOLEAN)
+            {
+              typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(t.line_no)+ " C1");
+            }
+          } 
+
+          else if (lhsType == STRING)
+          {
+            if (rhsType!=STRING)
+            {
+              typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(t.line_no)+ " C1");
+            }
+          }
+        }
+        
+
+        
+      }
+    }
+    
+    //cout<<"Expression Type: "<<expressionType<<endl;
     expect(SEMICOLON,"parseAssignmentStatement");
     
 }
 
 void Parser::parseWhileStatement()
 {
-    expect(WHILE,"parseWhileStatement");
-    parseCondition();
+    Token t = expect(WHILE,"parseWhileStatement");
+    TokenType conditionType = parseCondition();
+    if (conditionType!=ERROR)
+    {
+      if(conditionType!=BOOLEAN)
+      {
+        typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(t.line_no)+ " C7");
+      }
+    }
 
     TokenType type = peek();
     if (type == LBRACE)
@@ -606,15 +683,13 @@ TokenType Parser::parseExpression(int lineNumber)
         return typeCheck(type,operandType1,operandType2,lineNumber);
     }
 
-    /*
     else if (type == NOT)
     {
         expect(NOT,"parseExpression");
         TokenType operandType1 = parseExpression(lineNumber);
-        return typeCheck(type,operandType1,NONE,lineNumber)
+        return typeCheck(type,operandType1,BOOLEAN,lineNumber);
     }
-    */
-
+  
     else
     {
         return parsePrimary();
@@ -674,7 +749,7 @@ TokenType Parser::parsePrimary()
       checkBuiltInType(t.lexeme);
       if(!lookup(currentScope,t.lexeme))
       {
-        semanticErrors.push_back("ERROR CODE 1.2 "+t.lexeme);
+        declarationErrors.push_back("ERROR CODE 1.2 "+t.lexeme);
       }
 
       else
@@ -728,11 +803,12 @@ TokenType Parser::parseBoolConstant()
   }
 }
 
-void Parser::parseCondition()
+TokenType Parser::parseCondition()
 {
   Token t = expect(LPAREN,"parseCondition");
-  parseExpression(t.line_no);
+  TokenType conditionType = parseExpression(t.line_no);
   expect(RPAREN,"parseCondition");
+  return conditionType;
   
 }
 
@@ -741,13 +817,17 @@ int main()
   Parser newParser;
   newParser.parseProgram();
 
-  for( vector<string>::iterator semanticError = newParser.semanticErrors.begin(); semanticError!=newParser.semanticErrors.end(); ++semanticError)
+  if (newParser.declarationErrors.size()>0)
   {
-    cout<<*semanticError<<endl;
+    cout<<newParser.declarationErrors[0]<<endl;
   }
 
-  for (vector<string>::iterator typeMismatchError = newParser.typeMismatchErrors.begin(); typeMismatchError !=newParser.typeMismatchErrors.end(); ++typeMismatchError)
+  else 
   {
-    cout<<*typeMismatchError<<endl;
+    if (newParser.typeMismatchErrors.size()>0)
+    {
+      cout<<newParser.typeMismatchErrors[0]<<endl;  
+    }
+    
   }
 }

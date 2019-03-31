@@ -1,11 +1,7 @@
 {
-	u, v, a : INT;
-	x, y, b, z : REAL;
-	u = 1;
-	v = 2;
-	x = 3.5;
-	y = 4.5;
-	a = + u v;
-	b = + x y;	
-	z = + a b;
+	a,b,c,d : INT;
+	z: REAL;
+	c = + a b;
+	d = / a b;
+	z = + c d;
 }
