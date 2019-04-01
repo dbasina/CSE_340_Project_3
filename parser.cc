@@ -49,6 +49,59 @@ TokenType Parser::variableType(scope *scope,string tokenId)
   }
 }
 
+bool Parser::checkInitialization(scope *scope,string tokenId)
+{
+  if (scope!=NULL)
+  {
+    if(lookupInLocalScope(scope,tokenId))
+      return scope->initializationMap[tokenId];
+    else
+    {
+      return checkInitialization(scope->parent,tokenId);  
+    }   
+  }
+}
+
+bool Parser::setInitialization(scope *scope,string tokenId)
+{
+  bool retval = false;
+  if (scope!=NULL)
+  {
+    if(lookupInLocalScope(scope,tokenId))
+    {
+      if(!(scope->initializationMap[tokenId]))
+      {
+        scope->initializationMap[tokenId] = true;
+        retval = true;
+        return retval;
+      }
+      
+    }
+      
+    else
+    {
+      return setInitialization(scope->parent,tokenId);  
+    }
+    
+  }
+}
+
+void Parser::undoInitialization(scope *scope,string tokenId)
+{
+  if (scope!=NULL)
+  {
+    if(lookupInLocalScope(scope,tokenId))
+    {
+      scope->initializationMap[tokenId] = false;
+    }
+      
+    else
+    {
+      undoInitialization(scope->parent,tokenId);  
+    }
+    
+  }
+}
 TokenType Parser::typeCheck(TokenType type, TokenType operandType1, TokenType operandType2, int lineNumber)
 {
   
@@ -179,20 +232,39 @@ void Parser::referenceVariable(scope *scope, string variableId)
   if (scope!=NULL)
   {
     if(referenceVariableLocalScope(scope,variableId))
+    {
       scope->referenceMap[variableId] = true;
+      
+    }
     else
     {
-      return referenceVariable(scope->parent,variableId);  
+      referenceVariable(scope->parent,variableId);  
     }
     
   }
 }
 
+int Parser::findDeclarationLocation(scope *scope,string tokenId)
+{
+  if (scope!=NULL)
+  {
+    if(lookupInLocalScope(scope,tokenId))
+    {
+      return scope->declarationLocation[tokenId];
+    }
+      
+    else
+    {
+      return findDeclarationLocation(scope->parent,tokenId);  
+    }
+    
+  }
+}
 void Parser::syntaxError(string location)
 {
   
-  cout<<"Syntax Error:"<<location<<endl;
-  //cout<<"Syntax Error"<<endl;
+  //cout<<"Syntax Error:"<<location<<endl;
+  cout<<"Syntax Error"<<endl;
   exit(0);
 }
 
@@ -252,6 +324,12 @@ void Parser::parseScope()
   currentScope = newScope;     
 
   parseScopeList();
+
+  // Undo Initializations in this scope
+  for (vector<string>::iterator initIterator = currentScope->initializedInCurrentScope.begin(); initIterator != currentScope->initializedInCurrentScope.end();++initIterator)
+  {
+    undoInitialization(currentScope,*initIterator);
+  }
   expect(RBRACE,"parseScope");
   
   for(map<string,bool>::iterator referenceIterator = currentScope->referenceMap.begin();referenceIterator!=currentScope->referenceMap.end();++referenceIterator)
@@ -445,7 +523,7 @@ void Parser::parseVariableDeclaration()
 {
   
     vector<string> newDeclarations = parseIdList();
-    expect(COLON,"parseVariableDeclaration 1");
+    Token t = expect(COLON,"parseVariableDeclaration 1");
     TokenType declarationType = parseTypeName();
 
     // Add newVariables to currentScope
@@ -462,7 +540,8 @@ void Parser::parseVariableDeclaration()
         currentScope->variableIds.push_back(*declaredId);
         currentScope->localVariables.insert({*declaredId,declarationType});
         currentScope->referenceMap.insert({*declaredId,false});
-
+        currentScope->initializationMap.insert({*declaredId,false});
+        currentScope->declarationLocation.insert({*declaredId, t.line_no});
 
       }
     }
@@ -574,11 +653,22 @@ void Parser::parseAssignmentStatement()
     else
     {
       referenceVariable(currentScope, t.lexeme);
+      string decLoc = std::to_string(findDeclarationLocation(currentScope,t.lexeme));
+      string refLoc = std::to_string(t.line_no);
+      noErrorsOutput.push_back(t.lexeme+" "+refLoc+" "+decLoc);
     }
 
     expect(EQUAL,"parseAssignmentStatement");
     TokenType rhsType = parseExpression(t.line_no);
     
+    //Set initialization after parsing rightside
+    bool initializedNow = setInitialization(currentScope,t.lexeme);
+    if (initializedNow)
+    {
+      currentScope->initializedInCurrentScope.push_back(t.lexeme);
+    }
+    
+
     if(lookup(currentScope,t.lexeme))
     {
       if (rhsType!=ERROR)
@@ -619,10 +709,7 @@ void Parser::parseAssignmentStatement()
               typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(t.line_no)+ " C1");
             }
           }
-        }
-        
-
-        
+        }        
       }
     }
     
@@ -646,9 +733,26 @@ void Parser::parseWhileStatement()
     TokenType type = peek();
     if (type == LBRACE)
     {
+        
         expect(LBRACE,"parseWhileStatement");
+
+        scope *newScope = new scope();
+        newScope->parent = currentScope;
+        currentScope = newScope;     
         parseStatementList();
-        expect(RBRACE,"parseWhileStatement");
+
+        for (vector<string>::iterator initIterator = currentScope->initializedInCurrentScope.begin(); initIterator != currentScope->initializedInCurrentScope.end();++initIterator)
+        {
+          undoInitialization(currentScope,*initIterator);
+        }
+
+        expect(RBRACE,"parseScope");
+  
+        scope *temp = currentScope;
+        currentScope = currentScope->parent;
+        free(temp);    
+        
+        //parseScope();
     }
     else
     {
@@ -692,7 +796,7 @@ TokenType Parser::parseExpression(int lineNumber)
   
     else
     {
-        return parsePrimary();
+        return parsePrimary(lineNumber);
     }
 }
 
@@ -738,7 +842,7 @@ void Parser::parseRelationalOperator()
   }
 }
 
-TokenType Parser::parsePrimary()
+TokenType Parser::parsePrimary(int lineNumber)
 {
   Token t = lexer.GetToken();
 
@@ -755,6 +859,18 @@ TokenType Parser::parsePrimary()
       else
       {
         referenceVariable(currentScope, t.lexeme);
+        string decLoc = std::to_string(findDeclarationLocation(currentScope,t.lexeme));
+        string refLoc = std::to_string(t.line_no);
+        noErrorsOutput.push_back(t.lexeme+" "+refLoc+" "+decLoc);
+        if(!checkInitialization(currentScope,t.lexeme))
+        {
+          /*
+          initializationErrors.insert({t.lexeme,"UNINITIALIZED " + t.lexeme + " "+ std::to_string(lineNumber)});
+          initializationErrorsVector.push_back(initializationErrors[t.lexeme]);
+          */
+          initializationErrorsVector.push_back("UNINITIALIZED " + t.lexeme + " "+ std::to_string(lineNumber));
+          
+        }
         return variableType(currentScope,t.lexeme);
       }
     }
@@ -827,6 +943,25 @@ int main()
     if (newParser.typeMismatchErrors.size()>0)
     {
       cout<<newParser.typeMismatchErrors[0]<<endl;  
+    }
+
+    else
+    {
+      if (newParser.initializationErrorsVector.size()>0)
+      {
+        for (std::vector<string>::iterator initError = newParser.initializationErrorsVector.begin(); initError!= newParser.initializationErrorsVector.end();++initError)
+        {
+          cout<< *initError <<endl;
+        }
+      }
+
+      else
+      {
+        for (std::vector<string>::iterator output = newParser.noErrorsOutput.begin(); output!= newParser.noErrorsOutput.end();++output)
+        {
+          cout<<*output<<endl;
+        }
+      }
     }
     
   }

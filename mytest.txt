@@ -1,7 +1,11 @@
 {
-	a,b,c,d : INT;
-	z: REAL;
-	c = + a b;
-	d = / a b;
-	z = + c d;
+	a : INT;
+	{
+		a : INT;
+		{
+			a = 1;
+		}
+		a = 2;
+	}
+	a = 1;
 }

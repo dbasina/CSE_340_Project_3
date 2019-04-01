@@ -15,8 +15,11 @@ struct variable
 struct scope
 {
     vector<string> variableIds;
+    vector<string> initializedInCurrentScope;
+    map<string,int> declarationLocation;
     map<string,TokenType> localVariables;
     map<string,bool> referenceMap;
+    map<string,bool> initializationMap;
     scope *parent;
 };
 
@@ -27,6 +30,9 @@ class Parser
     std::vector<scope> scopeVector;
     std::vector<string> declarationErrors;
     std::vector<string> typeMismatchErrors;
+    map<string,string> initializationErrors;
+    std::vector<string> initializationErrorsVector;
+    std::vector<string> noErrorsOutput;
     LexicalAnalyzer lexer;
     Parser();
     void syntaxError(string location);
@@ -34,6 +40,10 @@ class Parser
     bool lookupInLocalScope(scope *scope,string tokenId);
     bool lookup(scope *scope,string tokenId);
     TokenType variableType(scope *scope,string tokenId);
+    bool checkInitialization(scope *scope,string tokenId);
+    bool setInitialization(scope *scope,string tokenId);
+    void undoInitialization(scope *scope,string tokenId);
+    int findDeclarationLocation(scope *scope,string tokenId);
     TokenType typeCheck(TokenType operatorType, TokenType operandType1, TokenType operandType2,int lineNumber);
     bool referenceVariableLocalScope(scope *scope, string variableId);
     void referenceVariable(scope *scope, string variableId);
@@ -54,7 +64,7 @@ class Parser
     void parseArithmeticOperator();
     void parseBinaryBooleanOperator();
     void parseRelationalOperator();
-    TokenType parsePrimary();
+    TokenType parsePrimary(int lineNumber);
     TokenType parseBoolConstant();
     TokenType parseCondition();
 
