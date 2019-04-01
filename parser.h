@@ -43,6 +43,8 @@ class Parser
     bool checkInitialization(scope *scope,string tokenId);
     bool setInitialization(scope *scope,string tokenId);
     void undoInitialization(scope *scope,string tokenId);
+    bool neitherInt(TokenType operandType1,TokenType operandType2);
+    bool neitherReal(TokenType operandType1,TokenType operandType2);
     int findDeclarationLocation(scope *scope,string tokenId);
     TokenType typeCheck(TokenType operatorType, TokenType operandType1, TokenType operandType2,int lineNumber);
     bool referenceVariableLocalScope(scope *scope, string variableId);

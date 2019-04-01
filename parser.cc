@@ -102,6 +102,26 @@ void Parser::undoInitialization(scope *scope,string tokenId)
     
   }
 }
+
+bool Parser::neitherInt(TokenType operandType1,TokenType operandType2)
+{
+  bool retval = false;
+  if (operandType1 != INT and operandType2 != INT)
+  {
+    retval = true;
+  }
+  return retval;
+}
+
+bool Parser::neitherReal(TokenType operandType1,TokenType operandType2)
+{
+  bool retval = false;
+  if (operandType1 != REAL and operandType2 != REAL)
+  {
+    retval = true;
+  }
+  return retval;
+}
 TokenType Parser::typeCheck(TokenType type, TokenType operandType1, TokenType operandType2, int lineNumber)
 {
   
@@ -158,7 +178,8 @@ TokenType Parser::typeCheck(TokenType type, TokenType operandType1, TokenType op
   }
   
   else if (type == GREATER or type == GTEQ or type == LESS or type == NOTEQUAL or type == LTEQ)
-  {       
+  {  
+    /*     
        //string
       if(operandType1 == STRING)
       {
@@ -187,7 +208,7 @@ TokenType Parser::typeCheck(TokenType type, TokenType operandType1, TokenType op
         }
       }
 
-       // int or real
+      // int or real
       else if(operandType1 == REAL or operandType1 == INT)
       {
         if(operandType2 == REAL or operandType2 == INT)
@@ -200,6 +221,36 @@ TokenType Parser::typeCheck(TokenType type, TokenType operandType1, TokenType op
           return ERROR;
         }
       }
+    */
+    if (neitherInt(operandType1,operandType2) and neitherReal(operandType1,operandType2))
+    {
+      if (operandType1 == operandType2)
+      {
+        return BOOLEAN;
+      }
+
+      else
+      {
+        typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+ " C5");
+        return ERROR; 
+      }
+    }
+
+    else
+    {
+      if(operandType1 == REAL or operandType1 == INT)
+      {
+        if(operandType2 == REAL or operandType2 == INT)
+        {
+          return BOOLEAN;
+        }
+        else
+        {
+          typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+ " C6");
+          return ERROR;
+        }
+      }
+    }
 
   }
 
