@@ -179,49 +179,6 @@ TokenType Parser::typeCheck(TokenType type, TokenType operandType1, TokenType op
   
   else if (type == GREATER or type == GTEQ or type == LESS or type == NOTEQUAL or type == LTEQ)
   {  
-    /*     
-       //string
-      if(operandType1 == STRING)
-      {
-        if(operandType2 == STRING)
-        {
-          return BOOLEAN;
-        }
-        else
-        {
-          typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+ " C5");
-          return ERROR;
-        }
-      }
-
-       //boolean
-      else if(operandType1 == BOOLEAN)
-      {
-        if(operandType2 == BOOLEAN)
-        {
-          return BOOLEAN;
-        }
-        else
-        {
-          typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+ " C5");
-          return ERROR;
-        }
-      }
-
-      // int or real
-      else if(operandType1 == REAL or operandType1 == INT)
-      {
-        if(operandType2 == REAL or operandType2 == INT)
-        {
-          return BOOLEAN;
-        }
-        else
-        {
-          typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+ " C6");
-          return ERROR;
-        }
-      }
-    */
     if (neitherInt(operandType1,operandType2) and neitherReal(operandType1,operandType2))
     {
       if (operandType1 == operandType2)
@@ -249,6 +206,12 @@ TokenType Parser::typeCheck(TokenType type, TokenType operandType1, TokenType op
           typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+ " C6");
           return ERROR;
         }
+      }
+
+      else
+      {
+        typeMismatchErrors.push_back("TYPE MISMATCH "+std::to_string(lineNumber)+ " C6");
+        return ERROR;
       }
     }
 
